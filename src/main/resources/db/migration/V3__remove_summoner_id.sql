@@ -1,0 +1,1 @@
+ALTER TABLE account.summoner DROP COLUMN summoner_id;
