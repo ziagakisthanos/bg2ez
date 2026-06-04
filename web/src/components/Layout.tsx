@@ -1,5 +1,7 @@
 import { Outlet, NavLink } from 'react-router-dom'
+import { useState } from 'react'
 import SyncButton from './SyncButton'
+import { useUnlinkAccount } from '../hooks/useUnlinkAccount'
 
 const navItems = [
   { to: '/', label: '> DASHBOARD', end: true },
@@ -13,6 +15,8 @@ const navItems = [
 ]
 
 export default function Layout() {
+    const unlink = useUnlinkAccount()
+    const [confirmUnlink, setConfirmUnlink] = useState(false)
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
 
@@ -65,6 +69,68 @@ export default function Layout() {
         {/* Sync */}
         <div style={{ marginTop: 'auto' }}>
           <SyncButton />
+        </div>
+
+        {/* Unlink */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {!confirmUnlink ? (
+            <button
+              onClick={() => setConfirmUnlink(true)}
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--border)',
+                color: 'var(--muted)',
+                padding: '8px 12px',
+                fontSize: '11px',
+                fontFamily: 'Krub, sans-serif',
+                cursor: 'pointer',
+                width: '100%',
+              }}
+            >
+              UNLINK ACCOUNT
+            </button>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ color: 'var(--muted)', fontSize: '10px', textAlign: 'center' }}>
+                Are you sure?
+              </div>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  onClick={async () => {
+                    await unlink.mutateAsync()
+                    setConfirmUnlink(false)
+                  }}
+                  style={{
+                    flex: 1,
+                    background: 'var(--loss)',
+                    border: 'none',
+                    color: '#fff',
+                    padding: '8px',
+                    fontSize: '10px',
+                    fontFamily: 'Krub, sans-serif',
+                    cursor: 'pointer',
+                  }}
+                >
+                  YES
+                </button>
+                <button
+                  onClick={() => setConfirmUnlink(false)}
+                  style={{
+                    flex: 1,
+                    background: 'transparent',
+                    border: '1px solid var(--border)',
+                    color: 'var(--muted)',
+                    padding: '8px',
+                    fontSize: '10px',
+                    fontFamily: 'Krub, sans-serif',
+                    cursor: 'pointer',
+                  }}
+                >
+                  NO
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </aside>
 

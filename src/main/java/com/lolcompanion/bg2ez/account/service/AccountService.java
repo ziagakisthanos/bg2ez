@@ -2,24 +2,35 @@ package com.lolcompanion.bg2ez.account.service;
 
 import com.lolcompanion.bg2ez.account.entity.Summoner;
 import com.lolcompanion.bg2ez.account.repository.SummonerRepository;
+import com.lolcompanion.bg2ez.analytics.repository.ChampionStatsRepository;
+import com.lolcompanion.bg2ez.analytics.repository.RoleStatsRepository;
+import com.lolcompanion.bg2ez.coaching.repository.InsightRepository;
+import com.lolcompanion.bg2ez.coaching.repository.OpponentInsightRepository;
+import com.lolcompanion.bg2ez.match.repository.MatchParticipantRepository;
+import com.lolcompanion.bg2ez.match.repository.MatchSummaryRepository;
+import com.lolcompanion.bg2ez.ranked.repository.RankedEntryRepository;
 import com.lolcompanion.bg2ez.riot.client.RiotApiClient;
 import com.lolcompanion.bg2ez.riot.model.AccountDto;
 import com.lolcompanion.bg2ez.riot.model.SummonerDto;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.time.OffsetDateTime;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class AccountService {
 
     private final RiotApiClient riotApiClient;
     private final SummonerRepository summonerRepository;
+    private final OpponentInsightRepository opponentInsightRepository;
+    private final InsightRepository insightRepository;
+    private final RankedEntryRepository rankedEntryRepository;
+    private final MatchParticipantRepository matchParticipantRepository;
+    private final MatchSummaryRepository matchSummaryRepository;
+    private final ChampionStatsRepository championStatsRepository;
+    private final RoleStatsRepository roleStatsRepository;
 
-    public AccountService(RiotApiClient riotApiClient,
-                          SummonerRepository summonerRepository) {
-        this.riotApiClient = riotApiClient;
-        this.summonerRepository = summonerRepository;
-    }
 
     public Summoner linkAccount(String gameName, String tagLine) {
         AccountDto account = riotApiClient.getAccountByRiotId(gameName, tagLine);
@@ -49,5 +60,19 @@ public class AccountService {
         return summonerRepository.findAll()
                 .stream()
                 .findFirst();
+    }
+
+    public void unlinkAccount() {
+        summonerRepository.findAll()
+                .stream()
+                .findFirst()
+                .ifPresent(summoner -> {
+                    opponentInsightRepository.deleteAll();
+                    matchParticipantRepository.deleteAll();
+                    matchSummaryRepository.deleteAll();
+                    championStatsRepository.deleteAll();
+                    roleStatsRepository.deleteAll();
+                    summonerRepository.delete(summoner);
+                });
     }
 }

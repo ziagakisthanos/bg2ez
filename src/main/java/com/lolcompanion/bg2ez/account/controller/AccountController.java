@@ -29,4 +29,10 @@ public class AccountController {
             @PathVariable String tagLine) {
         return summonerConverter.entityToModel(accountService.linkAccount(gameName, tagLine));
     }
+
+    @DeleteMapping("/account/unlink")
+    public ResponseEntity<Void> unlinkAccount() {
+        accountService.unlinkAccount();
+        return ResponseEntity.ok().build();
+    }
 }
