@@ -10,7 +10,6 @@ import com.lolcompanion.bg2ez.riot.model.AccountDto;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class LiveGameService {
@@ -48,6 +47,7 @@ public class LiveGameService {
                 .toList();
 
         return new LiveGameModel(
+                game.gameId().toString(),
                 game.gameMode(),
                 queueLabel(game.gameQueueConfigId()),
                 game.gameLength(),

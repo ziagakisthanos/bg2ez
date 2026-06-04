@@ -2,12 +2,12 @@ package com.lolcompanion.bg2ez.coaching.service;
 
 import com.lolcompanion.bg2ez.account.entity.Summoner;
 import com.lolcompanion.bg2ez.match.entity.MatchParticipant;
-import com.lolcompanion.bg2ez.match.entity.MatchSummary;
 import com.lolcompanion.bg2ez.match.repository.MatchParticipantRepository;
 import com.lolcompanion.bg2ez.match.repository.MatchSummaryRepository;
 import com.lolcompanion.bg2ez.ranked.entity.RankedEntry;
 import com.lolcompanion.bg2ez.ranked.repository.RankedEntryRepository;
 import org.springframework.stereotype.Component;
+import com.lolcompanion.bg2ez.riot.model.MatchDetailDto;
 
 import java.util.List;
 import java.util.Map;
@@ -16,14 +16,12 @@ import java.util.stream.Collectors;
 @Component
 public class ContextBuilder {
 
-    private final MatchSummaryRepository matchSummaryRepository;
     private final MatchParticipantRepository matchParticipantRepository;
     private final RankedEntryRepository rankedEntryRepository;
 
     public ContextBuilder(MatchSummaryRepository matchSummaryRepository,
                           MatchParticipantRepository matchParticipantRepository,
                           RankedEntryRepository rankedEntryRepository) {
-        this.matchSummaryRepository = matchSummaryRepository;
         this.matchParticipantRepository = matchParticipantRepository;
         this.rankedEntryRepository = rankedEntryRepository;
     }
@@ -197,5 +195,57 @@ public class ContextBuilder {
                 .stream()
                 .limit(limit)
                 .toList();
+    }
+
+    public String buildOpponentContext(String puuid, String championName,
+                                       List<MatchDetailDto> recentMatches) {
+        if (recentMatches.isEmpty()) return "No recent match data available for this player.";
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("== Opponent Scouting Report ==\n");
+        sb.append("Champion in current game: ").append(championName).append("\n");
+        sb.append("Recent matches analysed: ").append(recentMatches.size()).append("\n\n");
+
+        int totalGames = 0;
+        int wins = 0;
+        double totalKda = 0;
+        int totalCs = 0;
+        int totalDamage = 0;
+
+        Map<String, Integer> champCount = new java.util.HashMap<>();
+
+        for (MatchDetailDto match : recentMatches) {
+            var participantOpt = match.info().participants().stream()
+                    .filter(p -> puuid.equals(p.puuid()))
+                    .findFirst();
+
+            if (participantOpt.isEmpty()) continue;
+            var p = participantOpt.get();
+
+            totalGames++;
+            if (p.win()) wins++;
+            double deaths = p.deaths() == 0 ? 1.0 : p.deaths();
+            totalKda    += (p.kills() + p.assists()) / deaths;
+            totalCs     += p.totalMinionsKilled();
+            totalDamage += p.totalDamageDealtToChampions();
+            champCount.merge(p.championName(), 1, Integer::sum);
+        }
+
+        if (totalGames == 0) return "No data found for this player in recent matches.";
+
+        double winRate = (double) wins / totalGames * 100;
+        sb.append("Win rate: ").append(String.format("%.0f", winRate)).append("%\n");
+        sb.append("Avg KDA: ").append(String.format("%.2f", totalKda / totalGames)).append("\n");
+        sb.append("Avg CS: ").append(String.format("%.0f", (double) totalCs / totalGames)).append("\n");
+        sb.append("Avg Damage: ").append(String.format("%.0f", (double) totalDamage / totalGames)).append("\n");
+
+        sb.append("\nMost played champions recently:\n");
+        champCount.entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .limit(3)
+                .forEach(e -> sb.append("- ").append(e.getKey())
+                        .append(" (").append(e.getValue()).append("g)\n"));
+
+        return sb.toString();
     }
 }

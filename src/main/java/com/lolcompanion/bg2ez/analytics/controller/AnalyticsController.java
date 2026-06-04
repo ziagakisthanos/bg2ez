@@ -11,12 +11,14 @@ import com.lolcompanion.bg2ez.analytics.service.AnalyticsService;
 import com.lolcompanion.bg2ez.ranked.converter.RankedEntryConverter;
 import com.lolcompanion.bg2ez.ranked.model.RankedEntryModel;
 import com.lolcompanion.bg2ez.ranked.repository.RankedEntryRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import javax.management.relation.Role;
 import java.util.List;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/v1/me")
 public class AnalyticsController {
 
@@ -26,20 +28,6 @@ public class AnalyticsController {
     private final RoleStatsConverter roleStatsConverter;
     private final RankedEntryRepository rankedEntryRepository;
     private final RankedEntryConverter rankedEntryConverter;
-
-    public AnalyticsController(AnalyticsService analyticsService,
-                               SummonerRepository summonerRepository,
-                               ChampionStatsConverter championStatsConverter,
-                               RoleStatsConverter roleStatsConverter,
-                               RankedEntryRepository rankedEntryRepository,
-                               RankedEntryConverter rankedEntryConverter) {
-        this.analyticsService = analyticsService;
-        this.summonerRepository = summonerRepository;
-        this.championStatsConverter = championStatsConverter;
-        this.roleStatsConverter = roleStatsConverter;
-        this.rankedEntryRepository = rankedEntryRepository;
-        this.rankedEntryConverter = rankedEntryConverter;
-    }
 
     private String getLinkedPuuid() {
         return summonerRepository.findAll()

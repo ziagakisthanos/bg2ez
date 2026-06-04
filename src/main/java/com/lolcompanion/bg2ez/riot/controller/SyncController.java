@@ -1,17 +1,15 @@
 package com.lolcompanion.bg2ez.riot.controller;
 
 import com.lolcompanion.bg2ez.riot.service.SyncService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/v1")
 public class SyncController {
 
     private final SyncService syncService;
-
-    public SyncController(SyncService syncService) {
-        this.syncService = syncService;
-    }
 
     @PostMapping("/sync")
     public SyncService.SyncResult sync(

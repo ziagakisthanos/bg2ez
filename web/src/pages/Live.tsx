@@ -37,7 +37,6 @@ export default function Live() {
     </div>
   )
 }
-
 function NotInGame() {
   return (
     <div style={{
@@ -61,40 +60,78 @@ function NotInGame() {
   )
 }
 
+
 function GameView({ game, version }: { game: any; version: string }) {
   const minutes = game.gameLength ? Math.floor(game.gameLength / 60) : 0
   const seconds = game.gameLength ? game.gameLength % 60 : 0
+  const analyseEnemies = useAnalyseEnemies()
+  const [insights, setInsights] = useState<any[]>([])
+
+  const handleAnalyse = async () => {
+    const enemies = game.enemies.map((e: any) => ({
+      puuid: e.puuid,
+      championName: e.championId?.toString() ?? 'Unknown',
+    }))
+    const result = await analyseEnemies.mutateAsync({
+      gameId: game.gameId?.toString() ?? 'unknown',
+      enemies,
+    })
+    setInsights(result)
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-
       {/* Game info */}
       <div style={{
         display: 'flex',
-        gap: '24px',
-        fontSize: '12px',
-        color: 'var(--muted)',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         borderBottom: '1px solid var(--border)',
         paddingBottom: '16px',
       }}>
-        <span style={{ color: 'var(--accent)' }}>{game.queueLabel}</span>
-        <span>{minutes}:{seconds.toString().padStart(2, '0')} elapsed</span>
+        <div style={{ display: 'flex', gap: '24px', fontSize: '12px', color: 'var(--muted)' }}>
+          <span style={{ color: 'var(--accent)' }}>{game.queueLabel}</span>
+          <span>{minutes}:{seconds.toString().padStart(2, '0')} elapsed</span>
+        </div>
+        <button
+          onClick={handleAnalyse}
+          disabled={analyseEnemies.isPending}
+          style={{
+            background: analyseEnemies.isPending ? 'var(--surface)' : 'var(--accent)',
+            color: analyseEnemies.isPending ? 'var(--muted)' : '#000',
+            border: '1px solid var(--accent)',
+            padding: '10px 20px',
+            fontSize: '12px',
+            fontFamily: 'Krub, sans-serif',
+            fontWeight: 600,
+            cursor: analyseEnemies.isPending ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {analyseEnemies.isPending ? 'ANALYSING ENEMIES...' : 'SCOUT ENEMIES'}
+        </button>
       </div>
+
+      {analyseEnemies.isPending && (
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Fetching match history for 5 enemies — this takes about 60-90 seconds...
+        </div>
+      )}
 
       {/* Teams */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-        <TeamPanel title="YOUR TEAM" players={game.allies} version={version} isEnemy={false} />
-        <TeamPanel title="ENEMIES" players={game.enemies} version={version} isEnemy={true} />
+        <TeamPanel title="YOUR TEAM" players={game.allies} version={version} isEnemy={false} insights={[]} />
+        <TeamPanel title="ENEMIES" players={game.enemies} version={version} isEnemy={true} insights={insights} />
       </div>
     </div>
   )
 }
 
-function TeamPanel({ title, players, version, isEnemy }: {
+function TeamPanel({ title, players, version, isEnemy, insights }: {
   title: string
   players: any[]
   version: string
   isEnemy: boolean
+  insights: any[]
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -109,17 +146,22 @@ function TeamPanel({ title, players, version, isEnemy }: {
       }}>
         {title}
       </div>
-      {players.map((player: any) => (
-        <PlayerCard key={player.puuid} player={player} version={version} isEnemy={isEnemy} />
-      ))}
+      {players.map((player: any) => {
+        const insight = insights.find((i: any) => i.puuid === player.puuid)
+        return (
+          <PlayerCard key={player.puuid} player={player} version={version}
+                      isEnemy={isEnemy} insight={insight} />
+        )
+      })}
     </div>
   )
 }
 
-function PlayerCard({ player, version, isEnemy }: {
+function PlayerCard({ player, version, isEnemy, insight }: {
   player: any
   version: string
   isEnemy: boolean
+  insight?: any
 }) {
   const winRate = player.winRate ? `${player.winRate.toFixed(1)}%` : null
   const wr = player.winRate ?? 0
@@ -136,7 +178,6 @@ function PlayerCard({ player, version, isEnemy }: {
       position: 'relative',
       overflow: 'hidden',
     }}>
-      {/* Tier emblem background */}
       {player.tier && (
         <img
           src={tierEmblem(player.tier)}
@@ -153,7 +194,6 @@ function PlayerCard({ player, version, isEnemy }: {
         />
       )}
 
-      {/* Top row — champion + name */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         {version && player.championId && (
           <img
@@ -166,7 +206,6 @@ function PlayerCard({ player, version, isEnemy }: {
           <span style={{
             fontSize: '13px',
             color: player.isYou ? 'var(--accent)' : 'var(--text)',
-            fontWeight: player.isYou ? 600 : 400,
           }}>
             {player.summonerName || 'Unknown'}
             {player.isYou && (
@@ -178,7 +217,6 @@ function PlayerCard({ player, version, isEnemy }: {
         </div>
       </div>
 
-      {/* Rank row */}
       <div style={{ display: 'flex', gap: '16px', fontSize: '12px' }}>
         {player.tier ? (
           <>
@@ -199,6 +237,21 @@ function PlayerCard({ player, version, isEnemy }: {
           <span style={{ color: 'var(--muted)' }}>Unranked</span>
         )}
       </div>
+
+      {/* AI Scouting report */}
+      {insight && (
+        <div style={{
+          borderTop: '1px solid var(--border)',
+          paddingTop: '8px',
+          marginTop: '4px',
+          fontSize: '12px',
+          color: 'var(--muted)',
+          lineHeight: '1.8',
+          whiteSpace: 'pre-wrap',
+        }}>
+          {insight.content}
+        </div>
+      )}
     </div>
   )
 }
