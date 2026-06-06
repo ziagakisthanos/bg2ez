@@ -30,6 +30,13 @@ export const championSplash = (championName: string) => {
   return `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${name}_0.jpg`
 }
 
+export const championIconById = (version: string, champions: Record<string, any>, championId: number) => {
+  const champion = Object.values(champions).find((c: any) => parseInt(c.key) === championId)
+  return champion
+    ? `https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${champion.id}.png`
+    : null
+}
+
 export const tierEmblem = (tier: string) =>
   `https://raw.communitydragon.org/14.6/plugins/rcp-fe-lol-static-assets/global/default/ranked-emblem/emblem-${tier.toLowerCase()}.png`
 

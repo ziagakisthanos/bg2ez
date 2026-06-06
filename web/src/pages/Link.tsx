@@ -3,7 +3,7 @@ import { useLinkAccount } from '../hooks/useLinkAccount'
 
 export default function Link() {
   const [gameName, setGameName] = useState('')
-  const [tagLine, setTagLine] = useState('')
+  const [tagLine, setTagLine] = useState('EUNE')
   const [error, setError] = useState<string | null>(null)
   const link = useLinkAccount()
 

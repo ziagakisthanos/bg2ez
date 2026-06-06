@@ -2,10 +2,22 @@ import { useLiveGame } from '../hooks/useLiveGame'
 import { PageTitle, Loader } from '../components/shared'
 import { tierEmblem, championIcon } from '../utils/assets'
 import { useDDragonVersion } from '../hooks/useDDragonVersion'
+import { useAnalyseEnemies } from '../hooks/useAnalyseEnemies'
+import { useState } from 'react';
+import { useChampionData } from '../hooks/useChampionData'
+import { championIconById } from '../utils/assets'
 
 export default function Live() {
   const { data: game, isLoading, refetch } = useLiveGame()
   const { data: version } = useDDragonVersion()
+  const { data: champions } = useChampionData()
+  const [refreshing, setRefreshing] = useState(false)
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await refetch()
+    setRefreshing(false)
+  }
+
 
   if (isLoading) return <Loader />
 
@@ -14,25 +26,40 @@ export default function Live() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <PageTitle title="LIVE GAME" />
         <button
-          onClick={() => refetch()}
+          onClick={handleRefresh}
+          disabled={refreshing}
           style={{
             background: 'transparent',
             border: '1px solid var(--border)',
-            color: 'var(--muted)',
+            color: refreshing ? 'var(--accent)' : 'var(--muted)',
             padding: '8px 16px',
             fontSize: '11px',
             fontFamily: 'Krub, sans-serif',
-            cursor: 'pointer',
+            cursor: refreshing ? 'not-allowed' : 'pointer',
+            transition: 'color 0.15s, border-color 0.15s',
+            borderColor: refreshing ? 'var(--accent)' : 'var(--border)',
+          }}
+          onMouseEnter={e => {
+            if (!refreshing) {
+              e.currentTarget.style.color = 'var(--text)'
+              e.currentTarget.style.borderColor = 'var(--text)'
+            }
+          }}
+          onMouseLeave={e => {
+            if (!refreshing) {
+              e.currentTarget.style.color = 'var(--muted)'
+              e.currentTarget.style.borderColor = 'var(--border)'
+            }
           }}
         >
-          REFRESH
+          {refreshing ? 'REFRESHING...' : 'REFRESH'}
         </button>
       </div>
 
       {!game ? (
         <NotInGame />
       ) : (
-        <GameView game={game} version={version} />
+        <GameView game={game} version={version} champions={champions} />
       )}
     </div>
   )
@@ -61,7 +88,7 @@ function NotInGame() {
 }
 
 
-function GameView({ game, version }: { game: any; version: string }) {
+function GameView({ game, version, champions }: { game: any; version: string; champions: any }) {
   const minutes = game.gameLength ? Math.floor(game.gameLength / 60) : 0
   const seconds = game.gameLength ? game.gameLength % 60 : 0
   const analyseEnemies = useAnalyseEnemies()
@@ -119,19 +146,20 @@ function GameView({ game, version }: { game: any; version: string }) {
 
       {/* Teams */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-        <TeamPanel title="YOUR TEAM" players={game.allies} version={version} isEnemy={false} insights={[]} />
-        <TeamPanel title="ENEMIES" players={game.enemies} version={version} isEnemy={true} insights={insights} />
+        <TeamPanel title="YOUR TEAM" players={game.allies} version={version} champions={champions} isEnemy={false} insights={[]} />
+        <TeamPanel title="ENEMIES" players={game.enemies} version={version} champions={champions} isEnemy={true} insights={insights} />
       </div>
     </div>
   )
 }
 
-function TeamPanel({ title, players, version, isEnemy, insights }: {
+function TeamPanel({ title, players, version, isEnemy, insights, champions }: {
   title: string
   players: any[]
   version: string
   isEnemy: boolean
   insights: any[]
+  champions: any
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -146,26 +174,36 @@ function TeamPanel({ title, players, version, isEnemy, insights }: {
       }}>
         {title}
       </div>
-      {players.map((player: any) => {
+      {players.map((player: any, index: number) => {
         const insight = insights.find((i: any) => i.puuid === player.puuid)
         return (
-          <PlayerCard key={player.puuid} player={player} version={version}
-                      isEnemy={isEnemy} insight={insight} />
+          <PlayerCard
+            key={player.puuid ?? `player-${index}`}
+            player={player}
+            version={version}
+            champions={champions}
+            isEnemy={isEnemy}
+            insight={insight}
+          />
         )
       })}
     </div>
   )
 }
 
-function PlayerCard({ player, version, isEnemy, insight }: {
+function PlayerCard({ player, version, isEnemy, insight, champions }: {
   player: any
   version: string
   isEnemy: boolean
   insight?: any
+  champions: any
 }) {
   const winRate = player.winRate ? `${player.winRate.toFixed(1)}%` : null
   const wr = player.winRate ?? 0
   const totalGames = (player.wins ?? 0) + (player.losses ?? 0)
+  const iconUrl = version && champions && player.championId
+        ? championIconById(version, champions, player.championId)
+        : null
 
   return (
     <div style={{
@@ -195,10 +233,10 @@ function PlayerCard({ player, version, isEnemy, insight }: {
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        {version && player.championId && (
+        {iconUrl && (
           <img
-            src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${player.championId}.png`}
-            style={{ width: '36px', height: '36px', objectFit: 'cover' }}
+            src={iconUrl}
+            style={{ width: '36px', height: '36px', objectFit: 'cover', imageRendering: 'pixelated' }}
             onError={e => (e.currentTarget.style.display = 'none')}
           />
         )}
@@ -207,12 +245,7 @@ function PlayerCard({ player, version, isEnemy, insight }: {
             fontSize: '13px',
             color: player.isYou ? 'var(--accent)' : 'var(--text)',
           }}>
-            {player.summonerName || 'Unknown'}
-            {player.isYou && (
-              <span style={{ color: 'var(--accent)', fontSize: '10px', marginLeft: '6px' }}>
-                YOU
-              </span>
-            )}
+            {player.summonerName || player.championName || 'Unknown'}
           </span>
         </div>
       </div>
@@ -220,7 +253,7 @@ function PlayerCard({ player, version, isEnemy, insight }: {
       <div style={{ display: 'flex', gap: '16px', fontSize: '12px' }}>
         {player.tier ? (
           <>
-            <span style={{ color: 'var(--accent)', fontFamily: 'Ultra, serif' }}>
+            <span style={{ color: 'var(--accent)', fontFamily: 'Inter, serif' }}>
               {player.tier} {player.rank}
             </span>
             <span style={{ color: 'var(--muted)' }}>{player.leaguePoints} LP</span>
@@ -230,7 +263,7 @@ function PlayerCard({ player, version, isEnemy, insight }: {
               </span>
             )}
             {totalGames > 0 && (
-              <span style={{ color: 'var(--muted)' }}>{totalGames}G</span>
+              <span style={{ color: 'var(--muted)' }}>{totalGames} Games</span>
             )}
           </>
         ) : (

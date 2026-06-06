@@ -7,21 +7,17 @@ import com.lolcompanion.bg2ez.riot.client.RiotApiClient;
 import com.lolcompanion.bg2ez.riot.model.LiveGameDto;
 import com.lolcompanion.bg2ez.riot.model.RankedEntryDto;
 import com.lolcompanion.bg2ez.riot.model.AccountDto;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class LiveGameService {
 
     private final RiotApiClient riotApiClient;
     private final SummonerRepository summonerRepository;
-
-    public LiveGameService(RiotApiClient riotApiClient,
-                           SummonerRepository summonerRepository) {
-        this.riotApiClient = riotApiClient;
-        this.summonerRepository = summonerRepository;
-    }
 
     public LiveGameModel getLiveGame() {
         String myPuuid = summonerRepository.findAll()
@@ -58,6 +54,22 @@ public class LiveGameService {
 
     private LivePlayerModel toPlayerModel(
             LiveGameDto.LiveParticipantDto participant, String myPuuid) {
+
+        // Handle anonymous players with null PUUID
+        if (participant.puuid() == null || participant.puuid().isBlank()) {
+            return new LivePlayerModel(
+                    null,
+                    participant.riotId() != null ? participant.riotId() : "Anonymous",
+                    participant.championId(),
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    false
+            );
+        }
 
         String displayName = participant.riotId();
         if (displayName == null || displayName.isBlank()) {
@@ -96,7 +108,7 @@ public class LiveGameService {
                 }
             }
         } catch (Exception e) {
-            // player == unranked, null
+            // player is unranked or data unavailable
         }
 
         return new LivePlayerModel(
