@@ -22,6 +22,7 @@ public record MatchDetailDto(
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record ParticipantDto(
+            Integer participantId,
             String puuid,
             Integer championId,
             String championName,

@@ -38,12 +38,11 @@ public class RiotApiClient {
 
     public SummonerDto getSummonerByPuuid(String puuid) {
 
-        SummonerDto dto = platformClient.get()
+        return platformClient.get()
                 .uri("/lol/summoner/v4/summoners/by-puuid/{puuid}", puuid)
                 .header("X-Riot-Token", props.apiKey())
                 .retrieve()
                 .body(SummonerDto.class);
-        return dto;
     }
 
     public List<String> getMatchIds(String puuid, int count, long startTime) {
@@ -91,5 +90,13 @@ public class RiotApiClient {
                 .header("X-Riot-Token", props.apiKey())
                 .retrieve()
                 .body(AccountDto.class);
+    }
+
+    public MatchTimelineDto getMatchTimeline(String matchId) {
+        return regionalClient.get()
+                .uri("/lol/match/v5/matches/{matchId}/timeline", matchId)
+                .header("X-Riot-Token", props.apiKey())
+                .retrieve()
+                .body(MatchTimelineDto.class);
     }
 }
