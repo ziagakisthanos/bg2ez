@@ -19,5 +19,32 @@ public interface TimelineEventRepository extends JpaRepository<TimelineEvent, UU
             @Param("puuid") String puuid,
             @Param("matchIds") List<String> matchIds);
 
+    @Query("SELECT t FROM TimelineEvent t WHERE t.killerPuuid = :puuid AND t.matchId IN :matchIds AND t.eventType = 'CHAMPION_KILL'")
+    List<TimelineEvent> findKillsByPuuidAndMatches(
+            @Param("puuid") String puuid,
+            @Param("matchIds") List<String> matchIds);
+
+    @Query("SELECT t FROM TimelineEvent t WHERE t.victimPuuid = :puuid AND t.matchId IN :matchIds AND t.eventType = 'CHAMPION_KILL'")
+    List<TimelineEvent> findDeathsByPuuidAndMatches(
+            @Param("puuid") String puuid,
+            @Param("matchIds") List<String> matchIds);
+
+    @Query("SELECT t FROM TimelineEvent t WHERE t.killerPuuid = :puuid AND t.matchId IN :matchIds AND t.eventType = 'ELITE_MONSTER_KILL'")
+    List<TimelineEvent> findObjectiveKillsByPuuidAndMatches(
+            @Param("puuid") String puuid,
+            @Param("matchIds") List<String> matchIds);
+
+    @Query("SELECT t FROM TimelineEvent t WHERE t.creatorPuuid = :puuid " +
+            "AND t.matchId IN :matchIds AND t.eventType = 'WARD_PLACED'")
+    List<TimelineEvent> findWardsPlacedByPuuidAndMatches(
+            @Param("puuid") String puuid,
+            @Param("matchIds") List<String> matchIds);
+
+    @Query("SELECT t FROM TimelineEvent t WHERE t.killerPuuid = :puuid " +
+            "AND t.matchId IN :matchIds AND t.eventType = 'WARD_KILL'")
+    List<TimelineEvent> findWardsDestroyedByPuuidAndMatches(
+            @Param("puuid") String puuid,
+            @Param("matchIds") List<String> matchIds);
+
     boolean existsByMatchId(String matchId);
 }

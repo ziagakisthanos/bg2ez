@@ -4,8 +4,12 @@ import com.lolcompanion.bg2ez.analytics.entity.*;
 import com.lolcompanion.bg2ez.analytics.repository.*;
 import com.lolcompanion.bg2ez.config.repository.AppConfigRepository;
 import com.lolcompanion.bg2ez.match.entity.MatchParticipant;
+import com.lolcompanion.bg2ez.match.entity.TimelineEvent;
+import com.lolcompanion.bg2ez.riot.utils.MapZoneClassifier;
 import com.lolcompanion.bg2ez.match.repository.MatchParticipantRepository;
 import com.lolcompanion.bg2ez.match.repository.MatchSummaryRepository;
+import com.lolcompanion.bg2ez.match.repository.TimelineEventRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +23,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class AnalyticsService {
 
     private final MatchParticipantRepository participantRepository;
@@ -26,18 +31,9 @@ public class AnalyticsService {
     private final ChampionStatsRepository championStatsRepository;
     private final RoleStatsRepository roleStatsRepository;
     private final AppConfigRepository appConfigRepository;
-
-    public AnalyticsService(MatchParticipantRepository participantRepository,
-                            MatchSummaryRepository summaryRepository,
-                            ChampionStatsRepository championStatsRepository,
-                            RoleStatsRepository roleStatsRepository,
-                            AppConfigRepository appConfigRepository) {
-        this.participantRepository = participantRepository;
-        this.summaryRepository = summaryRepository;
-        this.championStatsRepository = championStatsRepository;
-        this.roleStatsRepository = roleStatsRepository;
-        this.appConfigRepository = appConfigRepository;
-    }
+    private final TimelineEventRepository timelineEventRepository;
+    private final MatchParticipantRepository matchParticipantRepository;
+    private final MapZoneClassifier mapZoneClassifier;
 
     @Transactional
     public void computeForPlayer(String puuid) {
@@ -49,16 +45,13 @@ public class AnalyticsService {
         OffsetDateTime splitStartDate = OffsetDateTime.ofInstant(
                 Instant.ofEpochSecond(splitStart), ZoneOffset.UTC);
 
-        // Get all match IDs within current split for ranked queues
         List<String> rankedMatchIds = summaryRepository.findRankedMatchIdsSince(splitStartDate);
-
-        // Get participant rows for this player in those matches
         List<MatchParticipant> participants = participantRepository.findByPuuidAndMatchIdIn(puuid, rankedMatchIds);
-
         if (participants.isEmpty()) return;
 
         computeChampionStats(puuid, participants);
         computeRoleStats(puuid, participants);
+        computeTimelineMetrics(puuid, rankedMatchIds, participants);
     }
 
     private void computeChampionStats(String puuid,
@@ -152,5 +145,133 @@ public class AnalyticsService {
 
     public List<RoleStats> getRoleStats(String puuid) {
         return roleStatsRepository.findByIdPuuid(puuid);
+    }
+
+    private void computeTimelineMetrics(String puuid,
+                                        List<String> rankedMatchIds,
+                                        List<MatchParticipant> participants) {
+        if (rankedMatchIds.isEmpty()) return;
+
+        Map<String, List<MatchParticipant>> byChampion = participants.stream()
+                .collect(Collectors.groupingBy(MatchParticipant::getChampionName));
+
+        List<TimelineEvent> kills = timelineEventRepository
+                .findKillsByPuuidAndMatches(puuid, rankedMatchIds);
+        List<TimelineEvent> deaths = timelineEventRepository
+                .findDeathsByPuuidAndMatches(puuid, rankedMatchIds);
+        List<TimelineEvent> objectives = timelineEventRepository
+                .findObjectiveKillsByPuuidAndMatches(puuid, rankedMatchIds);
+        List<TimelineEvent> wardsPlacedEvents = timelineEventRepository
+                .findWardsPlacedByPuuidAndMatches(puuid, rankedMatchIds);
+        List<TimelineEvent> wardsDestroyedEvents = timelineEventRepository
+                .findWardsDestroyedByPuuidAndMatches(puuid, rankedMatchIds);
+
+        Map<String, String> matchToChampion = participants.stream()
+                .collect(Collectors.toMap(
+                        MatchParticipant::getMatchId,
+                        MatchParticipant::getChampionName,
+                        (a, b) -> a));
+
+        Map<String, String> matchToRole = participants.stream()
+                .collect(Collectors.toMap(
+                        MatchParticipant::getMatchId,
+                        p -> p.getRole() == null ? "UNKNOWN" : p.getRole(),
+                        (a, b) -> a));
+
+        for (var entry : byChampion.entrySet()) {
+            String champion = entry.getKey();
+            List<MatchParticipant> games = entry.getValue();
+            List<String> champMatchIds = games.stream()
+                    .map(MatchParticipant::getMatchId)
+                    .toList();
+
+            int totalGames = games.size();
+
+            List<TimelineEvent> champKills = kills.stream()
+                    .filter(k -> champMatchIds.contains(k.getMatchId()))
+                    .toList();
+            List<TimelineEvent> champDeaths = deaths.stream()
+                    .filter(d -> champMatchIds.contains(d.getMatchId()))
+                    .toList();
+            List<TimelineEvent> champObjectives = objectives.stream()
+                    .filter(o -> champMatchIds.contains(o.getMatchId()))
+                    .toList();
+            List<TimelineEvent> champWardsPlaced = wardsPlacedEvents.stream()
+                    .filter(w -> champMatchIds.contains(w.getMatchId()))
+                    .toList();
+            List<TimelineEvent> champWardsDestroyed = wardsDestroyedEvents.stream()
+                    .filter(w -> champMatchIds.contains(w.getMatchId()))
+                    .toList();
+
+            String role = matchToRole.getOrDefault(games.getFirst().getMatchId(), "UNKNOWN");
+            String expectedZone = mapZoneClassifier.roleToExpectedZone(role);
+
+            // 1. Roam kills — kills in a zone different from expected role zone
+            long roamKills = champKills.stream()
+                    .filter(k -> k.getMapZone() != null
+                            && !k.getMapZone().equals(expectedZone)
+                            && !k.getMapZone().equals("JUNGLE")
+                            && !mapZoneClassifier.isObjective(k.getMapZone()))
+                    .count();
+
+            // 2. Early game kills — before 10 minutes
+            long earlyKills = champKills.stream()
+                    .filter(k -> k.getTimestampMs() != null && k.getTimestampMs() < 600000)
+                    .count();
+
+            // 3. Objective participation — kills/assists near dragon or baron
+            long objParticipation = champObjectives.size()
+                    + champKills.stream()
+                    .filter(k -> mapZoneClassifier.isObjective(k.getMapZone()))
+                    .count();
+
+            // 4. Death zone pattern — most common death zone
+            String deathZone = champDeaths.stream()
+                    .filter(d -> d.getMapZone() != null)
+                    .collect(Collectors.groupingBy(TimelineEvent::getMapZone, Collectors.counting()))
+                    .entrySet().stream()
+                    .max(Map.Entry.comparingByValue())
+                    .map(Map.Entry::getKey)
+                    .orElse("UNKNOWN");
+
+            // 5. Vision denied and placed per game
+            BigDecimal avgWardsPlaced = bd((double) champWardsPlaced.size() / totalGames);
+            BigDecimal avgWardsDestroyed = bd((double) champWardsDestroyed.size() / totalGames);
+
+            // 6. Comeback kills — kills after timestamp > 20 min (late game)
+            // Simple heuristic: kills after 20min in a losing position
+            // We use late game kills (>1200000ms) as a proxy for comeback factor
+            long comebackKills = champKills.stream()
+                    .filter(k -> k.getTimestampMs() != null && k.getTimestampMs() > 1200000)
+                    .count();
+
+            // 7. Split push kills — kills in side lanes near structures
+            long splitPushKills = champKills.stream()
+                    .filter(k -> k.getMapZone() != null
+                            && mapZoneClassifier.isSideLane(k.getMapZone()))
+                    .count();
+
+            BigDecimal avgRoam = bd((double) roamKills / totalGames);
+            BigDecimal avgEarly = bd((double) earlyKills / totalGames);
+            BigDecimal avgObj = bd((double) objParticipation / totalGames);
+            BigDecimal avgComeback = bd((double) comebackKills / totalGames);
+            BigDecimal avgSplitPush = bd((double) splitPushKills / totalGames);
+
+            ChampionStatsId id = new ChampionStatsId();
+            id.setPuuid(puuid);
+            id.setChampionName(champion);
+
+            championStatsRepository.findById(id).ifPresent(stats -> {
+                stats.setRoamKills(avgRoam);
+                stats.setEarlyKills(avgEarly);
+                stats.setObjParticipation(avgObj);
+                stats.setDeathZone(deathZone);
+                stats.setWardsPlaced(avgWardsPlaced);
+                stats.setWardsDestroyed(avgWardsDestroyed);
+                stats.setComebackKills(avgComeback);
+                stats.setSplitPushKills(avgSplitPush);
+                championStatsRepository.save(stats);
+            });
+        }
     }
 }

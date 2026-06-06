@@ -27,6 +27,12 @@ public class TimelineEvent {
     @Column(name = "victim_puuid")
     private String victimPuuid;
 
+    @Column(name = "creator_puuid")
+    private String creatorPuuid;
+
+    @Column(name = "ward_type")
+    private String wardType;
+
     @Column(name = "position_x")
     private Integer positionX;
 

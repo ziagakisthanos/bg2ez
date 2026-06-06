@@ -163,6 +163,7 @@ public class SyncService {
 
     public record SyncResult(int found, int newMatches, int fetched) {}
 
+    //TODO: check time complexity here, make it run async IF POSSIBLE
     private void persistTimeline(MatchDetailDto detail, MatchTimelineDto timeline) {
         // Build participantId -> puuid map from match detail
         Map<Integer, String> participantMap = detail.info().participants().stream()
@@ -181,6 +182,8 @@ public class SyncService {
                         ? participantMap.get(Integer.parseInt(event.killerId())) : null;
                 String victimPuuid = event.victimId() != null
                         ? participantMap.get(Integer.parseInt(event.victimId())) : null;
+                String creatorPuuid = event.creatorId() != null
+                        ? participantMap.get(Integer.parseInt(event.creatorId())) : null;
 
                 String zone = null;
                 if (event.position() != null) {
@@ -202,6 +205,8 @@ public class SyncService {
                 te.setTimestampMs(event.timestamp());
                 te.setKillerPuuid(killerPuuid);
                 te.setVictimPuuid(victimPuuid);
+                te.setCreatorPuuid(creatorPuuid);
+                te.setWardType(event.wardType());
                 te.setPositionX(event.position() != null ? event.position().x() : null);
                 te.setPositionY(event.position() != null ? event.position().y() : null);
                 te.setMapZone(zone);
@@ -215,6 +220,7 @@ public class SyncService {
         return switch (type) {
             case "CHAMPION_KILL",
                  "WARD_PLACED",
+                 "WARD_KILL",
                  "ELITE_MONSTER_KILL",
                  "BUILDING_KILL" -> true;
             default -> false;

@@ -21,4 +21,12 @@ public class ChampionStats {
     private Integer avgDamage;
     private BigDecimal avgVision;
     private OffsetDateTime lastComputed;
+    private BigDecimal roamKills;
+    private BigDecimal earlyKills;
+    private BigDecimal objParticipation;
+    private String deathZone;
+    private BigDecimal wardsPlaced;
+    private BigDecimal wardsDestroyed;
+    private BigDecimal comebackKills;
+    private BigDecimal splitPushKills;
 }

@@ -11,5 +11,13 @@ public record ChampionStatsModel(
         BigDecimal avgKda,
         BigDecimal avgCs,
         Integer avgDamage,
-        BigDecimal avgVision
+        BigDecimal avgVision,
+        BigDecimal roamKills,
+        BigDecimal earlyKills,
+        BigDecimal objParticipation,
+        String deathZone,
+        BigDecimal wardsPlaced,
+        BigDecimal wardsDestroyed,
+        BigDecimal comebackKills,
+        BigDecimal splitPushKills
 ) {}

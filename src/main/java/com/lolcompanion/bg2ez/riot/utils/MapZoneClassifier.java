@@ -2,6 +2,8 @@ package com.lolcompanion.bg2ez.riot.utils;
 
 import org.springframework.stereotype.Component;
 
+// TODO: add River zone later
+
 @Component
 public class MapZoneClassifier {
     // Map is 0-15000 on both axes

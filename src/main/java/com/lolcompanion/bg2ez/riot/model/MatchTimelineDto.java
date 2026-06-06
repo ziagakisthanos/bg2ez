@@ -30,6 +30,7 @@ public record MatchTimelineDto(
             Long timestamp,
             String killerId,
             String victimId,
+            String creatorId,
             List<String> assistingParticipantIds,
             PositionDto position,
             String wardType,

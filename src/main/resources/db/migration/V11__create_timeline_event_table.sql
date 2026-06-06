@@ -5,6 +5,8 @@ CREATE TABLE match.timeline_event (
                                       timestamp_ms    BIGINT NOT NULL,
                                       killer_puuid    TEXT,
                                       victim_puuid    TEXT,
+                                      creator_puuid   TEXT,
+                                      ward_type       TEXT,
                                       position_x      INT,
                                       position_y      INT,
                                       map_zone        TEXT,
@@ -15,4 +17,5 @@ CREATE TABLE match.timeline_event (
 CREATE INDEX idx_timeline_match_id ON match.timeline_event(match_id);
 CREATE INDEX idx_timeline_killer_puuid ON match.timeline_event(killer_puuid);
 CREATE INDEX idx_timeline_victim_puuid ON match.timeline_event(victim_puuid);
+CREATE INDEX idx_timeline_creator_puuid ON match.timeline_event(creator_puuid);
 CREATE INDEX idx_timeline_event_type ON match.timeline_event(event_type);

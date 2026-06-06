@@ -28,7 +28,15 @@ public class ChampionStatsConverter {
                 entity.getAvgKda(),
                 entity.getAvgCs(),
                 entity.getAvgDamage(),
-                entity.getAvgVision()
+                entity.getAvgVision(),
+                entity.getRoamKills(),
+                entity.getEarlyKills(),
+                entity.getObjParticipation(),
+                entity.getDeathZone(),
+                entity.getWardsPlaced(),
+                entity.getWardsDestroyed(),
+                entity.getComebackKills(),
+                entity.getSplitPushKills()
         );
     }
 
