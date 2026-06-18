@@ -5,6 +5,7 @@ import com.lolcompanion.bg2ez.coaching.model.OpponentInsightModel;
 import com.lolcompanion.bg2ez.coaching.repository.OpponentInsightRepository;
 import com.lolcompanion.bg2ez.riot.client.RiotApiClient;
 import com.lolcompanion.bg2ez.riot.model.MatchDetailDto;
+import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
@@ -15,22 +16,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class OpponentAnalysisService {
 
     private final ChatClient chatClient;
     private final ContextBuilder contextBuilder;
     private final OpponentInsightRepository opponentInsightRepository;
     private final RiotApiClient riotApiClient;
-
-    public OpponentAnalysisService(ChatClient.Builder chatClientBuilder,
-                                   ContextBuilder contextBuilder,
-                                   OpponentInsightRepository opponentInsightRepository,
-                                   RiotApiClient riotApiClient) {
-        this.chatClient = chatClientBuilder.build();
-        this.contextBuilder = contextBuilder;
-        this.opponentInsightRepository = opponentInsightRepository;
-        this.riotApiClient = riotApiClient;
-    }
 
     public List<OpponentInsightModel> analyseEnemies(String gameId,
                                                      List<OpponentRequest> enemies) {

@@ -9,6 +9,7 @@ import com.lolcompanion.bg2ez.coaching.model.AnalyseRequest;
 import com.lolcompanion.bg2ez.coaching.model.InsightModel;
 import com.lolcompanion.bg2ez.coaching.model.InsightSectionModel;
 import com.lolcompanion.bg2ez.coaching.repository.InsightRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class InsightGenerationService {
 
     private final ChatClient chatClient;
@@ -29,19 +31,6 @@ public class InsightGenerationService {
     private final InsightRepository insightRepository;
     private final SummonerRepository summonerRepository;
     private final InsightConverter insightConverter;
-
-    public InsightGenerationService(ChatClient.Builder chatClientBuilder,
-                                    ContextBuilder contextBuilder,
-                                    InsightRepository insightRepository,
-                                    SummonerRepository summonerRepository,
-                                    InsightConverter insightConverter
-    ) {
-        this.chatClient = chatClientBuilder.build();
-        this.contextBuilder = contextBuilder;
-        this.insightRepository = insightRepository;
-        this.summonerRepository = summonerRepository;
-        this.insightConverter = insightConverter;
-    }
 
     @Transactional
     public InsightModel analyse(AnalyseRequest request) {
